@@ -211,8 +211,7 @@ void Mrm_ref_can::calibrationPrint() {
 /** Center of measurements, like center of the line
 @param deviceNumber - Device's ordinal number. Each call of function add() assigns a increasing number to the device, starting with 0. 0xFF - calibrate all sensors.
 @param ofDark - center of dark. Otherwise center of bright.
-@return - 0 - nothing found. 1000 - 9000 for mrm-ref-can, 1000 - 8000 for ref-can8, 1000 - 6000 for mrm-ref-can6, and 1000 - 4000 for mrm-ref-can4.
-	1000 means center exactly under first sensor (the one closer to the biggest pin group).
+@return - 1000 - 9000. 1000 means center exactly under first phototransistor (denoted with "1" on the printed circuit board), 5000 is center transistor.
 */
 uint16_t Mrm_ref_can::center(uint8_t deviceNumber, bool ofDark) { 
 	if (digitalStarted(deviceNumber, ofDark))
