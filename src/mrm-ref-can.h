@@ -184,7 +184,7 @@ public:
 	void readingsPrint();
 
 	/**Test
-	@param analog - if not, digital values.
+	@param analog - if true, analog values - if not, digital values.
 	*/
 	void test(bool analog);
 
