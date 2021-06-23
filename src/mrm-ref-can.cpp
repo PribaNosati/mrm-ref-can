@@ -7,7 +7,8 @@
 @param hardwareSerial - Serial, Serial1, Serial2,... - an optional serial port, for example for Bluetooth communication
 @param maxNumberOfBoards - maximum number of boards
 */
-Mrm_ref_can::Mrm_ref_can(Robot* robot, uint8_t maxNumberOfBoards) : SensorBoard(robot, 1, "ReflArray", maxNumberOfBoards, ID_MRM_REF_CAN) {
+Mrm_ref_can::Mrm_ref_can(Robot* robot, uint8_t maxNumberOfBoards) : 
+	SensorBoard(robot, 1, "ReflArray", maxNumberOfBoards, ID_MRM_REF_CAN, MRM_REF_CAN_SENSOR_COUNT) {
 	_reading = new std::vector<uint16_t[MRM_REF_CAN_SENSOR_COUNT]>(maxNumberOfBoards);
 	calibrationDataBright = new std::vector<uint16_t[MRM_REF_CAN_SENSOR_COUNT]>(maxNumberOfBoards);
 	calibrationDataDark = new std::vector<uint16_t[MRM_REF_CAN_SENSOR_COUNT]>(maxNumberOfBoards);
@@ -74,7 +75,7 @@ void Mrm_ref_can::add(char * deviceName)
 */
 bool Mrm_ref_can::analogStarted(uint8_t deviceNumber) {
 	if ((*_mode)[deviceNumber] != ANALOG_VALUES || millis() - (*_lastReadingMs)[deviceNumber] > MRM_REF_CAN_INACTIVITY_ALLOWED_MS || (*_lastReadingMs)[deviceNumber] == 0) {
-		//print("Start analog \n\r"); 
+		//robotContainer->print("Start analog \n\r"); 
 		(*_lastReadingMs)[deviceNumber] = 0;
 		for (uint8_t i = 0; i < 8; i++) { // 8 tries
 			start(deviceNumber, 0); // As analog
@@ -82,7 +83,7 @@ bool Mrm_ref_can::analogStarted(uint8_t deviceNumber) {
 			uint32_t startMs = millis();
 			while (millis() - startMs < 50) {
 				if (millis() - (*_lastReadingMs)[deviceNumber] < 100) {
-					//print("Analog confirmed\n\r"); 
+					//robotContainer->print("Analog confirmed\n\r"); 
 					(*_mode)[deviceNumber] = ANALOG_VALUES;
 					return true;
 				}
@@ -131,7 +132,7 @@ void Mrm_ref_can::calibrate(uint8_t deviceNumber) {
 		}
 	else if (alive(deviceNumber)){
 		aliveSet(false, deviceNumber);
-		print("Calibrating %s...", name(deviceNumber));
+		robotContainer->print("Calibrating %s...", name(deviceNumber));
 		canData[0] = COMMAND_REF_CAN_CALIBRATE;
 		robotContainer->mrm_can_bus->messageSend((*idIn)[deviceNumber], 1, canData);
 		uint32_t startMs = millis();
@@ -144,9 +145,9 @@ void Mrm_ref_can::calibrate(uint8_t deviceNumber) {
 			}
 		}
 		if (ok)
-			print("OK\n\r");
+			robotContainer->print("OK\n\r");
 		else
-			print("timeout\n\r");
+			robotContainer->print("timeout\n\r");
 	}
 	robotContainer->end();
 }
@@ -197,14 +198,14 @@ void Mrm_ref_can::calibrationDataRequest(uint8_t deviceNumber, bool waitForResul
 void Mrm_ref_can::calibrationPrint() {
 	for (uint8_t deviceNumber = 0; deviceNumber < nextFree; deviceNumber++)
 		if (alive(deviceNumber)) {
-			print("Calibration for %s.\n\r", name());
-			print("Dark: ");
+			robotContainer->print("Calibration for %s.\n\r", name());
+			robotContainer->print("Dark: ");
 			for (uint8_t irNo = 0; irNo < MRM_REF_CAN_SENSOR_COUNT; irNo++)
-				print(" %3i", calibrationDataGet(irNo, true, deviceNumber));
-			print("\n\rBright: ");
+				robotContainer->print(" %3i", calibrationDataGet(irNo, true, deviceNumber));
+			robotContainer->print("\n\rBright: ");
 			for (uint8_t irNo = 0; irNo < MRM_REF_CAN_SENSOR_COUNT; irNo++)
-				print(" %3i", calibrationDataGet(irNo, false, deviceNumber));
-			print("\n\r");
+				robotContainer->print(" %3i", calibrationDataGet(irNo, false, deviceNumber));
+			robotContainer->print("\n\r");
 		}
 }
 
@@ -285,7 +286,7 @@ void Mrm_ref_can::dataFreshReadingsSet(bool setToFresh, uint8_t deviceNumber) {
 bool Mrm_ref_can::digitalStarted(uint8_t deviceNumber, bool darkCenter, bool startIfNot) {
 	if ((*_mode)[deviceNumber] != DIGITAL_AND_DARK_CENTER || millis() - (*_lastReadingMs)[deviceNumber] > MRM_REF_CAN_INACTIVITY_ALLOWED_MS || (*_lastReadingMs)[deviceNumber] == 0) {
 		if (startIfNot) {
-			//print("Digital started, dark: %i \n\r", darkCenter); 
+			//robotContainer->print("Digital started, dark: %i \n\r", darkCenter); 
 			(*_lastReadingMs)[deviceNumber] = 0;
 			for (uint8_t i = 0; i < 8; i++) { // 8 tries
 				start(deviceNumber, darkCenter ? 1 : 2); // As digital with dark or bright center
@@ -293,7 +294,7 @@ bool Mrm_ref_can::digitalStarted(uint8_t deviceNumber, bool darkCenter, bool sta
 				uint32_t startMs = millis();
 				while (millis() - startMs < 50) {
 					if (millis() - (*_lastReadingMs)[deviceNumber] < 100) {
-						//print("Digital confirmed\n\r"); 
+						//robotContainer->print("Digital confirmed\n\r"); 
 						(*_mode)[deviceNumber] = darkCenter ? DIGITAL_AND_DARK_CENTER : DIGITAL_AND_BRIGHT_CENTER;
 						return true;
 					}
@@ -383,7 +384,7 @@ bool Mrm_ref_can::messageDecode(uint32_t canId, uint8_t data[8]) {
 					(*_lastReadingMs)[deviceNumber] = millis();
 					break;
 				default:
-					print("Unknown command. ");
+					robotContainer->print("Unknown command. ");
 					messagePrint(canId, 8, data, false);
 					errorCode = 201;
 					errorInDeviceNumber = deviceNumber;
@@ -427,11 +428,11 @@ uint16_t Mrm_ref_can::reading(uint8_t receiverNumberInSensor, uint8_t deviceNumb
 /** Print all analog readings in a line
 */
 void Mrm_ref_can::readingsPrint() {
-	print("Refl:");
+	robotContainer->print("Refl:");
 	for (uint8_t deviceNumber = 0; deviceNumber < nextFree; deviceNumber++) {
 		for (uint8_t irNo = 0; irNo < MRM_REF_CAN_SENSOR_COUNT; irNo++)
 			if (alive(deviceNumber))
-				print("%3i ", reading(irNo, deviceNumber));
+				robotContainer->print("%3i ", reading(irNo, deviceNumber));
 	}
 }
 
@@ -446,17 +447,17 @@ void Mrm_ref_can::test(bool analog)
 		for (uint8_t deviceNumber = 0; deviceNumber < nextFree; deviceNumber++) {
 			if (alive(deviceNumber)) {
 				if (pass++)
-					print("| ");
+					robotContainer->print("| ");
 				for (uint8_t i = 0; i < MRM_REF_CAN_SENSOR_COUNT; i++)
-					print(analog ? "%3i " : "%i", analog ? reading(i, deviceNumber) : dark(i, deviceNumber));
+					robotContainer->print(analog ? "%3i " : "%i", analog ? reading(i, deviceNumber) : dark(i, deviceNumber));
 				if (!analog)
-					print(" c:%i", center(deviceNumber, (*_mode)[deviceNumber] == DIGITAL_AND_DARK_CENTER));
+					robotContainer->print(" c:%i", center(deviceNumber, (*_mode)[deviceNumber] == DIGITAL_AND_DARK_CENTER));
 
 			}
 		}
 		lastMs = millis();
 		if (pass)
-			print("\n\r");
+			robotContainer->print("\n\r");
 	}
 }
 
