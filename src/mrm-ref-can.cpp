@@ -16,6 +16,9 @@ Mrm_ref_can::Mrm_ref_can(Robot* robot, uint8_t maxNumberOfBoards) :
 	_mode = new std::vector<uint8_t>(maxNumberOfBoards);
 	measuringModeLimit = 2;
 	centerOfMeasurements = new std::vector<uint16_t>(maxNumberOfBoards);
+	_transistorCount = new std::vector<uint8_t>(maximumNumberOfBoards);
+	for (uint8_t i = 0; i < maximumNumberOfBoards; i++)
+		(*_transistorCount)[i] = 9;
 }
 
 Mrm_ref_can::~Mrm_ref_can()
@@ -108,15 +111,17 @@ bool Mrm_ref_can::any(bool dark, uint8_t deviceNumber, uint8_t fistTransistor, u
 	if (!digitalStarted(deviceNumber, false, false) && !digitalStarted(deviceNumber, true, false))
 		if (!digitalStarted(deviceNumber, dark))
 			return false;
+	//Max 9 transistors
+	if (lastTransistor > 8)
+		lastTransistor = 8;
+	//User may define less than 9
+	if ((*_transistorCount)[deviceNumber] < lastTransistor + 1)
+		lastTransistor = (*_transistorCount)[deviceNumber];
 
-	for (uint8_t i = fistTransistor; i < min(lastTransistor, (uint8_t)8); i++)
-		if ((*_mode)[deviceNumber] == DIGITAL_AND_DARK_CENTER) {
-			if ((*_reading)[deviceNumber][i] == dark ? 1 : 0)
+	for (uint8_t i = fistTransistor; i < lastTransistor; i++){
+		if ((*_reading)[deviceNumber][i] == (dark ? 1 : 0))
 				return true;
-		}
-		else
-			if ((*_reading)[deviceNumber][i] == dark ? 0 : 1)
-				return true;
+	}
 	return false;
 }
 
@@ -430,7 +435,7 @@ uint16_t Mrm_ref_can::reading(uint8_t receiverNumberInSensor, uint8_t deviceNumb
 void Mrm_ref_can::readingsPrint() {
 	robotContainer->print("Refl:");
 	for (uint8_t deviceNumber = 0; deviceNumber < nextFree; deviceNumber++) {
-		for (uint8_t irNo = 0; irNo < MRM_REF_CAN_SENSOR_COUNT; irNo++)
+		for (uint8_t irNo = 0; irNo < min(MRM_REF_CAN_SENSOR_COUNT, (int)(*_transistorCount)[deviceNumber]); irNo++)
 			if (alive(deviceNumber))
 				robotContainer->print("%3i ", reading(irNo, deviceNumber));
 	}
@@ -448,7 +453,7 @@ void Mrm_ref_can::test(bool analog)
 			if (alive(deviceNumber)) {
 				if (pass++)
 					robotContainer->print("| ");
-				for (uint8_t i = 0; i < MRM_REF_CAN_SENSOR_COUNT; i++)
+				for (uint8_t i = 0; i < min(MRM_REF_CAN_SENSOR_COUNT, (int)(*_transistorCount)[deviceNumber]); i++)
 					robotContainer->print(analog ? "%3i " : "%i", analog ? reading(i, deviceNumber) : dark(i, deviceNumber));
 				if (!analog)
 					robotContainer->print(" c:%i", center(deviceNumber, (*_mode)[deviceNumber] == DIGITAL_AND_DARK_CENTER));
