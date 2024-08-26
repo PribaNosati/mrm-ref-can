@@ -1,6 +1,9 @@
 #include "mrm-ref-can.h"
 #include <mrm-robot.h>
 
+std::vector<uint8_t>* commandIndexes_mrm_ref_can =  new std::vector<uint8_t>(); // C++ 17 enables static variables without global initialization, but no C++ 17 here
+std::vector<String>* commandNames_mrm_ref_can =  new std::vector<String>();
+
 /** Constructor
 @param robot - robot containing this board
 @param esp32CANBusSingleton - a single instance of CAN Bus common library for all CAN Bus peripherals.
@@ -19,6 +22,43 @@ Mrm_ref_can::Mrm_ref_can(Robot* robot, uint8_t maxNumberOfBoards) :
 	_transistorCount = new std::vector<uint8_t>(maximumNumberOfBoards);
 	for (uint8_t i = 0; i < maximumNumberOfBoards; i++)
 		(*_transistorCount)[i] = 9;
+		
+	if (commandIndexes_mrm_ref_can->empty()){
+		commandIndexes_mrm_ref_can->push_back(COMMAND_REF_CAN_MEASURE_ONCE_CENTER);
+		commandNames_mrm_ref_can->push_back("Meas once");
+		commandIndexes_mrm_ref_can->push_back(COMMAND_REF_CAN_MEASURE_CONTINUOUS_CENTER);
+		commandNames_mrm_ref_can->push_back("Meas cont");
+		commandIndexes_mrm_ref_can->push_back(COMMAND_REF_CAN_SENDING_SENSORS_1_TO_3);
+		commandNames_mrm_ref_can->push_back("Send 1-3");
+		commandIndexes_mrm_ref_can->push_back(COMMAND_REF_CAN_SENDING_SENSORS_4_TO_6);
+		commandNames_mrm_ref_can->push_back("Send 4-6");
+		commandIndexes_mrm_ref_can->push_back(COMMAND_REF_CAN_SENDING_SENSORS_7_TO_9);
+		commandNames_mrm_ref_can->push_back("Send 7-9");
+		commandIndexes_mrm_ref_can->push_back(COMMAND_REF_CAN_CALIBRATE);
+		commandNames_mrm_ref_can->push_back("Calibrate");
+		commandIndexes_mrm_ref_can->push_back(COMMAND_REF_CAN_CALIBRATION_DATA_DARK_1_TO_3);
+		commandNames_mrm_ref_can->push_back("Ca dd 1-3");
+		commandIndexes_mrm_ref_can->push_back(COMMAND_REF_CAN_CALIBRATION_DATA_DARK_4_TO_6);
+		commandNames_mrm_ref_can->push_back("Ca dd 4-6");
+		commandIndexes_mrm_ref_can->push_back(COMMAND_REF_CAN_CALIBRATION_DATA_DARK_7_TO_9);
+		commandNames_mrm_ref_can->push_back("Ca dd 7-9");
+		commandIndexes_mrm_ref_can->push_back(COMMAND_REF_CAN_CALIBRATION_DATA_REQUEST);
+		commandNames_mrm_ref_can->push_back("Cal d req");
+		commandIndexes_mrm_ref_can->push_back(COMMAND_REF_CAN_SENDING_SENSORS_CENTER);
+		commandNames_mrm_ref_can->push_back("Send s ce");
+		commandIndexes_mrm_ref_can->push_back(COMMAND_REF_CAN_CALIBRATION_DATA_BRIGHT_1_TO_3);
+		commandNames_mrm_ref_can->push_back("Ca db 1-3");
+		commandIndexes_mrm_ref_can->push_back(COMMAND_REF_CAN_CALIBRATION_DATA_BRIGHT_4_TO_6);
+		commandNames_mrm_ref_can->push_back("Ca db 4-6");
+		commandIndexes_mrm_ref_can->push_back(COMMAND_REF_CAN_CALIBRATION_DATA_BRIGHT_7_TO_9);
+		commandNames_mrm_ref_can->push_back("Ca db 7-9");
+		commandIndexes_mrm_ref_can->push_back(COMMAND_REF_CAN_REPORT_ALIVE_QUEUELESS);
+		commandNames_mrm_ref_can->push_back("Re ali ql");
+		commandIndexes_mrm_ref_can->push_back(COMMAND_REF_CAN_RECORD_PEAK);
+		commandNames_mrm_ref_can->push_back("Rec peak");
+		commandIndexes_mrm_ref_can->push_back(COMMAND_REF_CAN_REFRESH_MS);
+		commandNames_mrm_ref_can->push_back("Refres ms");
+	}
 }
 
 Mrm_ref_can::~Mrm_ref_can()
@@ -65,7 +105,7 @@ void Mrm_ref_can::add(char * deviceName)
 		canOut = CAN_ID_REF_CAN7_OUT;
 		break;
 	default:
-		strcpy(errorMessage, "Too many mrm-ref-cans");
+		sprintf(errorMessage, "Too many %s: %i.", _boardsName, nextFree);
 		return;
 	}
 	(*dataFresh)[nextFree] = 0xFF;
@@ -78,7 +118,7 @@ void Mrm_ref_can::add(char * deviceName)
 */
 bool Mrm_ref_can::analogStarted(uint8_t deviceNumber) {
 	if ((*_mode)[deviceNumber] != ANALOG_VALUES || millis() - (*_lastReadingMs)[deviceNumber] > MRM_REF_CAN_INACTIVITY_ALLOWED_MS || (*_lastReadingMs)[deviceNumber] == 0) {
-		//robotContainer->print("Start analog \n\r"); 
+		//print("Start analog \n\r"); 
 		(*_lastReadingMs)[deviceNumber] = 0;
 		for (uint8_t i = 0; i < 8; i++) { // 8 tries
 			start(deviceNumber, 0); // As analog
@@ -86,14 +126,14 @@ bool Mrm_ref_can::analogStarted(uint8_t deviceNumber) {
 			uint32_t startMs = millis();
 			while (millis() - startMs < 50) {
 				if (millis() - (*_lastReadingMs)[deviceNumber] < 100) {
-					//robotContainer->print("Analog confirmed\n\r"); 
+					//print("Analog confirmed\n\r"); 
 					(*_mode)[deviceNumber] = ANALOG_VALUES;
 					return true;
 				}
 				robotContainer->delayMs(1);
 			}
 		}
-		strcpy(errorMessage, "mrm-ref-can dead.\n\r");
+		sprintf(errorMessage, "%s %i dead.", _boardsName, deviceNumber);
 		return false;
 	}
 	else
@@ -137,7 +177,7 @@ void Mrm_ref_can::calibrate(uint8_t deviceNumber) {
 		}
 	else if (alive(deviceNumber)){
 		aliveSet(false, deviceNumber);
-		robotContainer->print("Calibrating %s...", name(deviceNumber));
+		print("Calibrating %s...", name(deviceNumber));
 		canData[0] = COMMAND_REF_CAN_CALIBRATE;
 		robotContainer->mrm_can_bus->messageSend((*idIn)[deviceNumber], 1, canData);
 		uint32_t startMs = millis();
@@ -150,9 +190,9 @@ void Mrm_ref_can::calibrate(uint8_t deviceNumber) {
 			}
 		}
 		if (ok)
-			robotContainer->print("OK\n\r");
+			print("OK\n\r");
 		else
-			robotContainer->print("timeout\n\r");
+			print("timeout\n\r");
 	}
 	robotContainer->end();
 }
@@ -165,7 +205,7 @@ void Mrm_ref_can::calibrate(uint8_t deviceNumber) {
 */
 uint16_t Mrm_ref_can::calibrationDataGet(uint8_t receiverNumberInSensor, bool isDark, uint8_t deviceNumber) {
 	if (deviceNumber >= nextFree || receiverNumberInSensor > MRM_REF_CAN_SENSOR_COUNT) {
-		strcpy(errorMessage, "mrm-ref-can doesn't exist");
+		sprintf(errorMessage, "%s %i doesn't exist.", _boardsName, deviceNumber);
 		return 0;
 	}
 	alive(deviceNumber);
@@ -203,14 +243,14 @@ void Mrm_ref_can::calibrationDataRequest(uint8_t deviceNumber, bool waitForResul
 void Mrm_ref_can::calibrationPrint() {
 	for (uint8_t deviceNumber = 0; deviceNumber < nextFree; deviceNumber++)
 		if (alive(deviceNumber)) {
-			robotContainer->print("Calibration for %s.\n\r", name());
-			robotContainer->print("Dark: ");
+			print("Calibration for %s.\n\r", name());
+			print("Dark: ");
 			for (uint8_t irNo = 0; irNo < MRM_REF_CAN_SENSOR_COUNT; irNo++)
-				robotContainer->print(" %3i", calibrationDataGet(irNo, true, deviceNumber));
-			robotContainer->print("\n\rBright: ");
+				print(" %3i", calibrationDataGet(irNo, true, deviceNumber));
+			print("\n\rBright: ");
 			for (uint8_t irNo = 0; irNo < MRM_REF_CAN_SENSOR_COUNT; irNo++)
-				robotContainer->print(" %3i", calibrationDataGet(irNo, false, deviceNumber));
-			robotContainer->print("\n\r");
+				print(" %3i", calibrationDataGet(irNo, false, deviceNumber));
+			print("\n\r");
 		}
 }
 
@@ -291,7 +331,7 @@ void Mrm_ref_can::dataFreshReadingsSet(bool setToFresh, uint8_t deviceNumber) {
 bool Mrm_ref_can::digitalStarted(uint8_t deviceNumber, bool darkCenter, bool startIfNot) {
 	if ((*_mode)[deviceNumber] != DIGITAL_AND_DARK_CENTER || millis() - (*_lastReadingMs)[deviceNumber] > MRM_REF_CAN_INACTIVITY_ALLOWED_MS || (*_lastReadingMs)[deviceNumber] == 0) {
 		if (startIfNot) {
-			//robotContainer->print("Digital started, dark: %i \n\r", darkCenter); 
+			//print("Digital started, dark: %i \n\r", darkCenter); 
 			(*_lastReadingMs)[deviceNumber] = 0;
 			for (uint8_t i = 0; i < 8; i++) { // 8 tries
 				start(deviceNumber, darkCenter ? 1 : 2); // As digital with dark or bright center
@@ -299,14 +339,14 @@ bool Mrm_ref_can::digitalStarted(uint8_t deviceNumber, bool darkCenter, bool sta
 				uint32_t startMs = millis();
 				while (millis() - startMs < 50) {
 					if (millis() - (*_lastReadingMs)[deviceNumber] < 100) {
-						//robotContainer->print("Digital confirmed\n\r"); 
+						//print("Digital confirmed\n\r"); 
 						(*_mode)[deviceNumber] = darkCenter ? DIGITAL_AND_DARK_CENTER : DIGITAL_AND_BRIGHT_CENTER;
 						return true;
 					}
 					robotContainer->delayMs(1);
 				}
 			}
-			strcpy(errorMessage, "mrm-ref-can dead.\n\r");
+			sprintf(errorMessage, "%s %i dead.", _boardsName, deviceNumber);
 		}
 		return false;
 	}
@@ -390,7 +430,7 @@ bool Mrm_ref_can::messageDecode(uint32_t canId, uint8_t data[8], uint8_t length)
 					(*_lastReadingMs)[deviceNumber] = millis();
 					break;
 				default:
-					robotContainer->print("Unknown command. ");
+					print("Unknown command. ");
 					messagePrint(canId, length, data, false);
 					errorCode = 201;
 					errorInDeviceNumber = deviceNumber;
@@ -414,6 +454,21 @@ bool Mrm_ref_can::messageDecode(uint32_t canId, uint8_t data[8], uint8_t length)
 	return false;
 }
 
+/** Sets recording of peaks between refreshes
+ * 
+*/
+void Mrm_ref_can::peakRecordingSet(RecordPeakType type, uint8_t deviceNumber){
+	if (deviceNumber == 0xFF)
+		for (uint8_t i = 0; i < nextFree; i++)
+			peakRecordingSet(type, i);
+	else if (alive(deviceNumber)) {
+		delay(1);
+		canData[0] = COMMAND_REF_CAN_RECORD_PEAK;
+		canData[1] = type;
+		messageSend(canData, 2, deviceNumber);
+	}
+}
+
 /** Enable plug and play
 @param enable - enable or disable
 @param deviceNumber - Device's ordinal number. Each call of function add() assigns a increasing number to the device, starting with 0.
@@ -424,7 +479,7 @@ void Mrm_ref_can::pnpSet(bool enable, uint8_t deviceNumber){
 			pnpSet(enable, i);
 	else if (alive(deviceNumber)) {
 		delay(1);
-		canData[0] = enable ? COMMAND_REF_CAN_PNP_ENABLE : COMMAND_REF_CAN_PNP_DISABLE;
+		canData[0] = enable ? COMMAND_PNP_ENABLE : COMMAND_PNP_DISABLE;
 		canData[1] = enable;
 		messageSend(canData, 2, deviceNumber);
 	}
@@ -437,7 +492,7 @@ void Mrm_ref_can::pnpSet(bool enable, uint8_t deviceNumber){
 */
 uint16_t Mrm_ref_can::reading(uint8_t receiverNumberInSensor, uint8_t deviceNumber){
 	if (deviceNumber >= nextFree || receiverNumberInSensor > MRM_REF_CAN_SENSOR_COUNT) {
-		strcpy(errorMessage, "mrm-ref-can doesn't exist");
+		sprintf(errorMessage, "%s %i doesn't exist.", _boardsName, deviceNumber);
 		return 0;
 	}
 	alive(deviceNumber, true);
@@ -450,11 +505,27 @@ uint16_t Mrm_ref_can::reading(uint8_t receiverNumberInSensor, uint8_t deviceNumb
 /** Print all analog readings in a line
 */
 void Mrm_ref_can::readingsPrint() {
-	robotContainer->print("Refl:");
+	print("Refl:");
 	for (uint8_t deviceNumber = 0; deviceNumber < nextFree; deviceNumber++) {
 		for (uint8_t irNo = 0; irNo < min(MRM_REF_CAN_SENSOR_COUNT, (int)(*_transistorCount)[deviceNumber]); irNo++)
 			if (alive(deviceNumber))
-				robotContainer->print("%3i ", reading(irNo, deviceNumber));
+				print("%3i ", reading(irNo, deviceNumber));
+	}
+}
+
+/** Sets refresh rate for sensor 
+ * 
+*/
+void Mrm_ref_can::refreshSet(uint16_t ms, uint8_t deviceNumber){
+	if (deviceNumber == 0xFF)
+		for (uint8_t i = 0; i < nextFree; i++)
+			refreshSet(ms, i);
+	else if (alive(deviceNumber)) {
+		delay(1);
+		canData[0] = COMMAND_REF_CAN_REFRESH_MS;
+		canData[1] = ms & 0xFF;
+		canData[2] = (ms >> 8) & 0xFF;
+		messageSend(canData, 3, deviceNumber);
 	}
 }
 
@@ -469,17 +540,17 @@ void Mrm_ref_can::test(bool analog)
 		for (uint8_t deviceNumber = 0; deviceNumber < nextFree; deviceNumber++) {
 			if (alive(deviceNumber)) {
 				if (pass++)
-					robotContainer->print("| ");
+					print("| ");
 				for (uint8_t i = 0; i < min(MRM_REF_CAN_SENSOR_COUNT, (int)(*_transistorCount)[deviceNumber]); i++)
-					robotContainer->print(analog ? "%3i " : "%i", analog ? reading(i, deviceNumber) : dark(i, deviceNumber));
+					print(analog ? "%3i " : "%i", analog ? reading(i, deviceNumber) : dark(i, deviceNumber));
 				if (!analog)
-					robotContainer->print(" c:%i", center(deviceNumber, (*_mode)[deviceNumber] == DIGITAL_AND_DARK_CENTER));
+					print(" c:%i", center(deviceNumber, (*_mode)[deviceNumber] == DIGITAL_AND_DARK_CENTER));
 
 			}
 		}
 		lastMs = millis();
 		if (pass)
-			robotContainer->print("\n\r");
+			print("\n\r");
 	}
 }
 

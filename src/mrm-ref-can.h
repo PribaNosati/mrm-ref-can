@@ -38,16 +38,14 @@ Licence: You can use this code any way you like.
 #define COMMAND_REF_CAN_CALIBRATION_DATA_DARK_1_TO_3 0x0A
 #define COMMAND_REF_CAN_CALIBRATION_DATA_DARK_4_TO_6 0x0B
 #define COMMAND_REF_CAN_CALIBRATION_DATA_DARK_7_TO_9 0x0C
+#define COMMAND_REF_CAN_CALIBRATION_DATA_REQUEST 0x0D
+#define COMMAND_REF_CAN_SENDING_SENSORS_CENTER 0x0E
 #define COMMAND_REF_CAN_CALIBRATION_DATA_BRIGHT_1_TO_3 0x0F
 #define COMMAND_REF_CAN_CALIBRATION_DATA_BRIGHT_4_TO_6 0x50
 #define COMMAND_REF_CAN_CALIBRATION_DATA_BRIGHT_7_TO_9 0x51
-#define COMMAND_REF_CAN_CALIBRATION_DATA_REQUEST 0x0D
-#define COMMAND_REF_CAN_SENDING_SENSORS_CENTER 0x0E
-#define COMMAND_REPORT_ALIVE_QUEUELESS 0x0F // todo
-#define COMMAND_REF_CAN_PNP_ENABLE 0x28
-#define COMMAND_REF_CAN_PNP_DISABLE 0x29
-#define COMMAND_REF_CAN_PNP_REQUEST 0x32
-#define COMMAND_REF_CAN_PNP_SENDING 0x33
+#define COMMAND_REF_CAN_REPORT_ALIVE_QUEUELESS 0x53
+#define COMMAND_REF_CAN_RECORD_PEAK 0x54
+#define COMMAND_REF_CAN_REFRESH_MS 0x55
 
 #define MRM_REF_CAN_INACTIVITY_ALLOWED_MS 10000
 
@@ -110,6 +108,7 @@ class Mrm_ref_can : public SensorBoard
 	bool digitalStarted(uint8_t deviceNumber, bool darkCenter, bool startIfNot = true);
 	
 public:
+	enum RecordPeakType {NO_PEAK, MAX_PEAK, MIN_PEAK} recordPeak = NO_PEAK;
 
 	/** Constructor
 	@param robot - robot containing this board
@@ -177,13 +176,18 @@ public:
 	@param data - 8 bytes from CAN Bus message.
 	@param length - number of data bytes
 	*/
-	bool messageDecode(uint32_t canId, uint8_t data[8], uint8_t length);
+	bool messageDecode(uint32_t canId, uint8_t data[8], uint8_t dlc = 8);
+
+	/** Sets recording of peaks between refreshes
+	 * 
+	*/
+	void peakRecordingSet(RecordPeakType type, uint8_t deviceNumber = 0xFF);
 
 	/** Enable plug and play
 	@param enable - enable or disable
 	@param deviceNumber - Device's ordinal number. Each call of function add() assigns a increasing number to the device, starting with 0.
 	*/
-	void pnpSet(bool enable, uint8_t deviceNumber);
+	void pnpSet(bool enable, uint8_t deviceNumber = 0xFF);
 	
 	/** Analog readings
 	@param receiverNumberInSensor - single IR transistor in mrm-ref-can
@@ -195,6 +199,11 @@ public:
 	/** Print all readings in a line
 	*/
 	void readingsPrint();
+
+	/** Sets refresh rate for sensor 
+	 * 
+	*/
+	void refreshSet(uint16_t ms, uint8_t deviceNumber = 0xFF);
 
 	/**Test
 	@param analog - if true, analog values - if not, digital values.
