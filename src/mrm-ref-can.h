@@ -1,6 +1,7 @@
 #pragma once
 #include "Arduino.h"
 #include <mrm-board.h>
+#include <map>
 
 /**
 Purpose: mrm-ref-can interface to CANBus.
@@ -108,6 +109,8 @@ class Mrm_ref_can : public SensorBoard
 	bool digitalStarted(uint8_t deviceNumber, bool darkCenter, bool startIfNot = true);
 	
 public:
+	static std::map<int, std::string>* commandNamesSpecific;
+
 	enum RecordPeakType {NO_PEAK, MAX_PEAK, MIN_PEAK} recordPeak = NO_PEAK;
 
 	/** Constructor
@@ -116,7 +119,7 @@ public:
 	@param hardwareSerial - Serial, Serial1, Serial2,... - an optional serial port, for example for Bluetooth communication
 	@param maxNumberOfBoards - maximum number of boards
 	*/
-	Mrm_ref_can(Robot* robot = NULL, uint8_t maxNumberOfBoards = 5);
+	Mrm_ref_can(uint8_t maxNumberOfBoards = 5);
 
 	~Mrm_ref_can();
 
@@ -163,6 +166,8 @@ public:
 	*/
 	uint16_t center(uint8_t deviceNumber = 0, bool ofDark = true);
 
+	std::string commandName(uint8_t byte);
+	
 	/** Dark?
 	@param receiverNumberInSensor - single IR transistor in mrm-ref-can
 	@param deviceNumber - Device's ordinal number. Each call of function add() assigns a increasing number to the device, starting with 0.
@@ -176,19 +181,13 @@ public:
 	@param data - 8 bytes from CAN Bus message.
 	@param length - number of data bytes
 	*/
-	bool messageDecode(uint32_t canId, uint8_t data[8], uint8_t dlc = 8);
+	bool messageDecode(CANMessage& message);
 
 	/** Sets recording of peaks between refreshes
 	 * 
 	*/
 	void peakRecordingSet(RecordPeakType type, uint8_t deviceNumber = 0xFF);
 
-	/** Enable plug and play
-	@param enable - enable or disable
-	@param deviceNumber - Device's ordinal number. Each call of function add() assigns a increasing number to the device, starting with 0.
-	*/
-	void pnpSet(bool enable, uint8_t deviceNumber = 0xFF);
-	
 	/** Analog readings
 	@param receiverNumberInSensor - single IR transistor in mrm-ref-can
 	@param deviceNumber - Device's ordinal number. Each call of function add() assigns a increasing number to the device, starting with 0.

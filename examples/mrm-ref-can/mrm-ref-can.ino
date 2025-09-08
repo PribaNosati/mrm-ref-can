@@ -22,7 +22,7 @@ void setup() {
 void loop() {
   // Receive a message
   uint8_t startIndex;
-  CANBusMessage* msg = can.messageReceive();      // Receive a message, if any arrived.
+  CANMessage* msg = can.messageReceive();      // Receive a message, if any arrived.
   if (msg != NULL){                               // If not NULL, a message received.
     switch (msg->data[0]) {// According to command (header) decode the appropriate payload
     case COMMAND_REF_CAN_SENDING_SENSORS_1_TO_3:  // First 3 transistors
